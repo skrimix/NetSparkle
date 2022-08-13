@@ -791,7 +791,8 @@ namespace NetSparkleUpdater
                 {
                     try
                     {
-                        filename = await UpdateDownloader.RetrieveDestinationFileNameAsync(item);
+                        //filename = await UpdateDownloader.RetrieveDestinationFileNameAsync(item);
+                        filename = Path.GetFileName(new Uri(item.DownloadLink).LocalPath);
                     }
                     catch (Exception)
                     {
