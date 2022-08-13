@@ -1418,8 +1418,8 @@ namespace NetSparkleUpdater
             {
                 var relaunchLine = $@"{RelaunchAfterUpdateCommandPrefix ?? ""}""{executableName}""";
                 relaunchAfterUpdate = $@"
-                    cd ""{workingDir}""
-                    {relaunchLine.Trim()}";
+cd ""{workingDir}""
+{relaunchLine.Trim()}";
             }
 
             using (FileStream stream = new FileStream(batchFilePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 4096, true))
@@ -1432,25 +1432,25 @@ namespace NetSparkleUpdater
                     // Code from: http://stackoverflow.com/a/22559462/3938401
 
                     string output = $@"
-                        @echo off
-                        chcp 65001 > nul
-                        set /A counter=0                       
-                        setlocal ENABLEDELAYEDEXPANSION
-                        :loop
-                        set /A counter=!counter!+1
-                        if !counter! == 90 (
-                            exit /b 1
-                        )
-                        tasklist | findstr ""\<{processID}\>"" > nul
-                        if not errorlevel 1 (
-                            timeout /t 1 > nul
-                            goto :loop
-                        )
-                        :install
-                        {installerCmd}
-                        :afterinstall
-                        {relaunchAfterUpdate.Trim()}
-                        endlocal";
+@echo off
+chcp 65001 > nul
+set /A counter=0                       
+setlocal ENABLEDELAYEDEXPANSION
+:loop
+set /A counter=!counter!+1
+if !counter! == 90 (
+    exit /b 1
+)
+tasklist | findstr ""\<{processID}\>"" > nul
+if not errorlevel 1 (
+    timeout /t 1 > nul
+    goto :loop
+)
+:install
+{installerCmd}
+:afterinstall
+{relaunchAfterUpdate.Trim()}
+endlocal";
                     await write.WriteAsync(output);
                     write.Close();
                 }
@@ -1458,26 +1458,40 @@ namespace NetSparkleUpdater
                 {
                     // We should wait until the host process has died before starting the installer.
                     var waitForFinish = $@"
-                        COUNTER=0;
-                        while ps -p {processID} > /dev/null;
-                            do sleep 1;
-                            COUNTER=$((++COUNTER));
-                            if [ $COUNTER -eq 90 ] 
-                            then
-                                exit -1;
-                            fi;
-                        done;
-                    ";
+COUNTER=0;
+while ps -p {processID} > /dev/null;
+    do sleep 1;
+    COUNTER=$((++COUNTER));
+    if [ $COUNTER -eq 90 ] 
+    then
+        exit -1;
+    fi;
+done;
+";
                     if (IsZipDownload(downloadFilePath)) // .zip on macOS or .tar.gz on Linux
                     {
                         // waiting for finish based on http://blog.joncairns.com/2013/03/wait-for-a-unix-process-to-finish/
                         // use tar to extract
-                        var tarCommand = isMacOS ? $"tar -x -f \"{downloadFilePath}\" -C \"{workingDir}\""
-                            : $"tar -xf \"{downloadFilePath}\" -C \"{workingDir}\" --overwrite ";
+                        var sourcePath = Path.GetDirectoryName(downloadFilePath);
+                        var targetPath = Directory.GetParent(workingDir).FullName;
+                        var downloadFileNameWithoutExtension = isMacOS
+                            ? downloadFilePath.Replace(".zip", "")
+                            : downloadFilePath.Replace(".tar.gz", "");
+                        var tarCommand = isMacOS ? $"tar -x -f \"{downloadFilePath}\" -C \"{sourcePath}\""
+                            : $"tar -xf \"{downloadFilePath}\" -C \"{sourcePath}\" --overwrite ";
+                        // workaround for dylib loading issues on macOS
+                        var dylibRmCommand = isMacOS ? $"rm -f {targetPath}/*.dylib" : "";
+                        var rmCommand = $"rm -f \"{downloadFilePath}\"";
+                        var cpCommand = $"cp -rf \"{downloadFileNameWithoutExtension}/.\" \"{targetPath}/\"";
+                        var rmCommand2 = $"rm -r \"{downloadFileNameWithoutExtension}\"";
                         var output = $@"
-                            {waitForFinish}
-                            {tarCommand}
-                            {relaunchAfterUpdate}";
+{waitForFinish}
+{tarCommand}
+{dylibRmCommand}
+{cpCommand}
+{rmCommand}
+{rmCommand2}
+{relaunchAfterUpdate}";
                         await write.WriteAsync(output.Replace("\r\n", "\n"));
                     }
                     else
