@@ -1473,16 +1473,15 @@ done;
                         // waiting for finish based on http://blog.joncairns.com/2013/03/wait-for-a-unix-process-to-finish/
                         // use tar to extract
                         var sourcePath = Path.GetDirectoryName(downloadFilePath);
-                        var targetPath = Directory.GetParent(workingDir).FullName;
                         var downloadFileNameWithoutExtension = isMacOS
                             ? downloadFilePath.Replace(".zip", "")
                             : downloadFilePath.Replace(".tar.gz", "");
                         var tarCommand = isMacOS ? $"tar -x -f \"{downloadFilePath}\" -C \"{sourcePath}\""
                             : $"tar -xf \"{downloadFilePath}\" -C \"{sourcePath}\" --overwrite ";
                         // workaround for dylib loading issues on macOS
-                        var dylibRmCommand = isMacOS ? $"rm -f {targetPath}/*.dylib" : "";
+                        var dylibRmCommand = isMacOS ? $"rm -f {workingDir}/*.dylib" : "";
                         var rmCommand = $"rm -f \"{downloadFilePath}\"";
-                        var cpCommand = $"cp -rf \"{downloadFileNameWithoutExtension}/.\" \"{targetPath}/\"";
+                        var cpCommand = $"cp -rf \"{downloadFileNameWithoutExtension}/.\" \"{workingDir}/\"";
                         var rmCommand2 = $"rm -r \"{downloadFileNameWithoutExtension}\"";
                         var output = $@"
 {waitForFinish}
