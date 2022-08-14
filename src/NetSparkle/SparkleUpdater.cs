@@ -73,7 +73,7 @@ namespace NetSparkleUpdater
         /// It would be better if things ran using async/await, but this will
         /// suffice as a "fix" for now.
         /// </summary>
-        private Action _actionToRunOnProgressWindowShown;
+        private Func<Task> _funcToRunOnProgressWindowShown;
 
         #endregion
 
@@ -866,7 +866,7 @@ namespace NetSparkleUpdater
                     needsToDownload = false;
                     // Still need to set up the ProgressWindow for non-silent downloads, though,
                     // so that the user can actually perform the install
-                    _actionToRunOnProgressWindowShown = () =>
+                    _funcToRunOnProgressWindowShown = async () =>
                     {
                         CallFuncConsideringUIThreads(() => { DownloadFinished?.Invoke(_itemBeingDownloaded, _downloadTempFileName); });
                         bool shouldInstallAndRelaunch = UserInteractionMode == UserInteractionMode.DownloadAndInstall;
@@ -913,11 +913,11 @@ namespace NetSparkleUpdater
                 UpdateDownloader.DownloadFileCompleted -= OnDownloadFinished;
                 UpdateDownloader.DownloadProgressChanged += OnDownloadProgressChanged;
                 UpdateDownloader.DownloadFileCompleted += OnDownloadFinished;
-                _actionToRunOnProgressWindowShown = () =>
+                _funcToRunOnProgressWindowShown = async () =>
                 {
                     Uri url = Utilities.GetAbsoluteURL(item.DownloadLink, AppCastUrl);
                     LogWriter.PrintMessage("Starting to download {0} to {1}", item.DownloadLink, _downloadTempFileName);
-                    UpdateDownloader.StartFileDownload(url, _downloadTempFileName);
+                    await UpdateDownloader.StartFileDownload(url, _downloadTempFileName);
                     CallFuncConsideringUIThreads(() => 
                     { 
                         DownloadStarted?.Invoke(item, _downloadTempFileName);
@@ -987,8 +987,8 @@ namespace NetSparkleUpdater
                             _syncContext.Post((state2) =>
                             {
                                 OnDownloadFinished(null, new AsyncCompletedEventArgs(null, false, null));
-                                _actionToRunOnProgressWindowShown?.Invoke();
-                                _actionToRunOnProgressWindowShown = null;
+                                _funcToRunOnProgressWindowShown?.Invoke();
+                                _funcToRunOnProgressWindowShown = null;
                             }, null);
                         }
                     }
@@ -1002,16 +1002,16 @@ namespace NetSparkleUpdater
                     _syncContext.Post((state) =>
                     {
                         showSparkleDownloadUI(null);
-                        _actionToRunOnProgressWindowShown?.Invoke();
-                        _actionToRunOnProgressWindowShown = null;
+                        _funcToRunOnProgressWindowShown?.Invoke();
+                        _funcToRunOnProgressWindowShown = null;
                         ProgressWindow?.Show(ShowsUIOnMainThread);
                     }, null);
                 }
                 else
                 {
                     showSparkleDownloadUI(null);
-                    _actionToRunOnProgressWindowShown?.Invoke();
-                    _actionToRunOnProgressWindowShown = null;
+                    _funcToRunOnProgressWindowShown?.Invoke();
+                    _funcToRunOnProgressWindowShown = null;
                     ProgressWindow?.Show(ShowsUIOnMainThread);
                 }
             });

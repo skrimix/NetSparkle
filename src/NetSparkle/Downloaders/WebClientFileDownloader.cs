@@ -97,14 +97,12 @@ namespace NetSparkleUpdater.Downloaders
         }
 
         /// <inheritdoc/>
-        public void StartFileDownload(Uri uri, string downloadFilePath)
+        public async Task StartFileDownload(Uri uri, string downloadFilePath)
         {
             _logger?.PrintMessage("IUpdateDownloader: Starting file download from {0} to {1}", uri, downloadFilePath);
+            
+            await StartFileDownloadAsync(uri, downloadFilePath);
 
-            AsyncHelper.RunSync(async () =>
-            {
-                await StartFileDownloadAsync(uri, downloadFilePath);
-            });
         }
 
         private async Task StartFileDownloadAsync(Uri uri, string downloadFilePath)
